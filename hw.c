@@ -15,6 +15,12 @@ typedef struct Agent{
   int agent_id;
   int x_coordinate;
   int y_coordinate;
+  int on_grid_type;
+  
+  int agent_around; 
+  int depot_around;
+  int cluster_around;
+
   int** percepts_to_action;
   int first_empty_percept_to_action_index;
 };
@@ -56,34 +62,238 @@ int number_of_gold_clusters = 0;
 int number_of_obstacles = 0;
 int number_of_crumbs = 0;
 
+
+
 void randomWalk(int robot_index){
   int robot_x = robots[robot_index].x_coordinate;
+
   int robot_y = robots[robot_index].y_coordinate;
- 
-  int best_x = robots[robot_index].x_coordinate;
-  int best_y = robots[robot_index].y_coordinate;
 
-  int candidate_x;
-  int candidate_y;
+  int hasGold = robots[robot_index].hasGold;
 
-  int i;
-  int isDepot = 0;
-  int num_crumb = 0;
+  int on_grid_type = robots[robot_index].on_grid_type;
 
+  int agent_around = robots[robot_index].agent_around;
+
+  int cluster_around = robots[robot_index].cluster_around;
+
+  int depot_around = robots[robot_index].depot_around;
+
+  int** percepts_to_act = robots[robot_index].percepts_to_action;
+
+  int number_of_percepts = robots[robot_index].first_empty_percept_to_action_index;
+
+  int i, d, j;
+
+  if(robot_index == 0){
+    printf("hasGold: %d", hasGold);
+  }
+
+  if(number_of_percepts == 0){
+    printf("\nAHAHHAHAAHAHHAHHAHAHAHAHAHAHHAH\n");
+    if(hasGold == 1 && agent_around == 1){  
+      //x,y
+      //x-1,y & x+1,y & x,y-1 & x,y+1 & x-1,y+1 & x-1,y-1 & x+1, y-1 & x+1, y+1
+      for(i = 0; i < number_of_robots; i++){
+        if(robots[i].x_coordinate == robot_x - 1 && robots[i].y_coordinate == robot_y && robots[i].hasGold == 0){
+          robots[robot_index].hasGold = 0;
+          robots[i].hasGold = 1;
+          break;
+        }
+        if(robots[i].x_coordinate == robot_x + 1 && robots[i].y_coordinate == robot_y && robots[i].hasGold == 0){
+          robots[robot_index].hasGold = 0;
+          robots[i].hasGold = 1;
+          break;
+        }
+        if(robots[i].x_coordinate == robot_x && robots[i].y_coordinate == robot_y - 1 && robots[i].hasGold == 0){
+          robots[robot_index].hasGold = 0;
+          robots[i].hasGold = 1;
+          break;
+        }
+        if(robots[i].x_coordinate == robot_x && robots[i].y_coordinate == robot_y + 1 && robots[i].hasGold == 0){
+          robots[robot_index].hasGold = 0;
+          robots[i].hasGold = 1;
+          break;
+        }
+        if(robots[i].x_coordinate == robot_x - 1 && robots[i].y_coordinate == robot_y + 1 && robots[i].hasGold == 0){
+          robots[robot_index].hasGold = 0;
+          robots[i].hasGold = 1;
+          break;
+        }
+        if(robots[i].x_coordinate == robot_x - 1 && robots[i].y_coordinate == robot_y - 1 && robots[i].hasGold == 0){
+          robots[robot_index].hasGold = 0;
+          robots[i].hasGold = 1;
+          break;
+        }
+        if(robots[i].x_coordinate == robot_x + 1 && robots[i].y_coordinate == robot_y - 1 && robots[i].hasGold == 0){
+          robots[robot_index].hasGold = 0;
+          robots[i].hasGold = 1;
+          break;
+        }
+        if(robots[i].x_coordinate == robot_x + 1 && robots[i].y_coordinate == robot_y + 1 && robots[i].hasGold == 0){
+          robots[robot_index].hasGold = 0;
+          robots[i].hasGold = 1;
+          break;
+        }
+      }
+    }
+    return;
+  }
+
+  if(hasGold == 1 && on_grid_type == _crumb){
+    for(i = 0; i < number_of_crumbs; i++){
+      struct Crumb my_crumb = crumbs[i];
+      if(my_crumb.x_coordinate == robot_x && my_crumb.y_coordinate == robot_y){
+        crumbs[i].number_of_crumbs++;
+      }
+    }
+  } else if(hasGold == 1 && on_grid_type == _empty){
+    if(number_of_crumbs == 0){
+      struct Crumb crumb;
+      crumb.x_coordinate = robot_x;
+      crumb.y_coordinate = robot_y;
+      crumb.number_of_crumbs = 1;
+      crumbs = realloc(crumbs, 1 * sizeof(struct Crumb));
+      crumbs[0] = crumb;
+      number_of_crumbs++;
+    } else {
+      struct Crumb crumb;
+      crumb.x_coordinate = robot_x;
+      crumb.y_coordinate = robot_y;
+      crumb.number_of_crumbs = 1;
+      crumbs = realloc(crumbs, (number_of_crumbs + 1) * sizeof(struct Crumb));
+      crumbs[number_of_crumbs] = crumb;
+      number_of_crumbs++;
+    }
+  } else if (hasGold == 0 && on_grid_type == _crumb){
+    for(i = 0; i < number_of_crumbs; i++){
+      struct Crumb my_crumb = crumbs[i];
+      
+      if(my_crumb.x_coordinate == robot_x && my_crumb.y_coordinate == robot_y){
+        crumbs[i].number_of_crumbs--;
+        if(crumbs[i].number_of_crumbs == 0){
+          //delete crumb from crumbs array
+          struct Crumb* crumbs_temp = malloc((number_of_crumbs - 1) * sizeof(struct Crumb));
+          for(d = 0; d < number_of_crumbs; d++){
+
+            if(d < i){
+              crumbs_temp[d] = crumbs[d];
+            } else if (d == i){
+              continue;
+            } else {
+              crumbs_temp[d-1] = crumbs[d];
+            }
+          }
+          //free(crumbs);
+          //crumbs = NULL;
+          crumbs = crumbs_temp;
+          //free(crumbs_temp);
+          //crumbs_temp = NULL;
+        }
+        number_of_crumbs--;
+        break;
+      }
+    }
+  }
+
+  if(hasGold == 0 && on_grid_type == _goldCluster){
+    //pick up gold
+    
+    robots[robot_index].hasGold = 1;
+    int i;
+    for(i = 0; i < number_of_gold_clusters; i++){
+      if(gold_clusters[i].x_coordinate == robot_x && gold_clusters[i].y_coordinate == robot_y){
+        gold_clusters[i].number_of_golds--;
+      }
+    }
+    return;
+  } 
+  
+  if(hasGold == 1 && on_grid_type == _depot){
+    //put down gold
+    robots[robot_index].hasGold = 0;                                 
+    depot.number_of_golds++;                                                                                                                        
+    return;
+  } 
+
+  if(hasGold == 1 && depot_around == 1){
+    robots[robot_index].x_coordinate = depot.x_coordinate;
+    robots[robot_index].y_coordinate = depot.y_coordinate;
+    return;
+  }
+
+  if(hasGold == 0 && cluster_around == 1){
+    for(i = 0 ; i < number_of_percepts; i++){
+      for(j = 0 ; j < number_of_gold_clusters; j++){
+        if(gold_clusters[j].x_coordinate == percepts_to_act[i][0] && gold_clusters[j].y_coordinate == percepts_to_act[i][1]){
+          robots[robot_index].x_coordinate = gold_clusters[j].x_coordinate;
+          robots[robot_index].y_coordinate = gold_clusters[j].y_coordinate;
+          break;
+        }
+      }
+    }
+    return;
+  }
+  
+  int r = rand() % number_of_percepts; 
+
+  
+  robots[robot_index].x_coordinate = percepts_to_act[r][0];
+  robots[robot_index].y_coordinate = percepts_to_act[r][1];
+
+  return;
+  
 }
 
 int canRandomWalk(int robot_index){
   int robot_x = robots[robot_index].x_coordinate;
   int robot_y = robots[robot_index].y_coordinate;
- 
+  int i;
+  int flag = 0;
+
+  for(i = 0; i < number_of_gold_clusters; i++){
+    struct GoldCluster my_cluster = gold_clusters[i];
+    if(my_cluster.x_coordinate == robot_x && my_cluster.y_coordinate == robot_y && my_cluster.number_of_golds >= 1){
+      flag = 1;
+      robots[robot_index].on_grid_type = _goldCluster;
+    }
+  }
+
+  for(i = 0; i < number_of_crumbs; i++){
+    struct Crumb my_crumb = crumbs[i];
+    if(my_crumb.x_coordinate == robot_x && my_crumb.y_coordinate == robot_y){
+      flag = 1;
+      robots[robot_index].on_grid_type = _crumb;
+    }
+  }
+
+  if(depot.x_coordinate == robot_x && depot.y_coordinate == robot_y){
+    flag = 1;
+    robots[robot_index].on_grid_type = _depot;
+  }
+
+  if(flag == 0){
+    robots[robot_index].on_grid_type = _empty;
+  }
+
+
   int canGoSomewhere = 0; 
+  
+  robots[robot_index].agent_around = 0;
+  robots[robot_index].cluster_around = 0;
+  robots[robot_index].depot_around = 0;
+
   robots[robot_index].first_empty_percept_to_action_index = 0;
 
   if(robot_x - 1 >= 0){
-    
+
+    if(grid[robot_y][robot_x-1][0] == _goldCluster) robots[robot_index].cluster_around = 1;
+    if(grid[robot_y][robot_x-1][0] == _depot) robots[robot_index].depot_around = 1;
+    if(grid[robot_y][robot_x-1][0] == _agentNoGold) robots[robot_index].agent_around = 1;
 
     if(grid[robot_y][robot_x-1][0] == _empty || grid[robot_y][robot_x-1][0] == _depot || 
       grid[robot_y][robot_x-1][0] == _goldCluster || grid[robot_y][robot_x-1][0] == _crumb ){
+
       
       robots[robot_index].percepts_to_action[robots[robot_index].first_empty_percept_to_action_index][0] = robot_x-1;
       robots[robot_index].percepts_to_action[robots[robot_index].first_empty_percept_to_action_index][1] = robot_y;
@@ -93,6 +303,10 @@ int canRandomWalk(int robot_index){
     }
 
     if(robot_y - 1 >= 0){
+
+      if(grid[robot_y-1][robot_x-1][0] == _goldCluster) robots[robot_index].cluster_around = 1;
+      if(grid[robot_y-1][robot_x-1][0] == _depot) robots[robot_index].depot_around = 1;
+      if(grid[robot_y-1][robot_x-1][0] == _agentNoGold) robots[robot_index].agent_around = 1;
       
       if(grid[robot_y-1][robot_x-1][0] == _empty || grid[robot_y-1][robot_x-1][0] == _depot || 
         grid[robot_y-1][robot_x-1][0] == _goldCluster || grid[robot_y-1][robot_x-1][0] == _crumb ){
@@ -107,6 +321,10 @@ int canRandomWalk(int robot_index){
     } 
 
     if(robot_y + 1 < n){
+
+      if(grid[robot_y+1][robot_x-1][0] == _goldCluster) robots[robot_index].cluster_around = 1;
+      if(grid[robot_y+1][robot_x-1][0] == _depot) robots[robot_index].depot_around = 1;
+      if(grid[robot_y+1][robot_x-1][0] == _agentNoGold) robots[robot_index].agent_around = 1;
       
       if(grid[robot_y+1][robot_x-1][0] == _empty || grid[robot_y+1][robot_x-1][0] == _depot || 
         grid[robot_y+1][robot_x-1][0] == _goldCluster || grid[robot_y+1][robot_x-1][0] == _crumb ){
@@ -122,6 +340,10 @@ int canRandomWalk(int robot_index){
  
   }
   if(robot_y - 1 >= 0){
+
+    if(grid[robot_y-1][robot_x][0] == _goldCluster) robots[robot_index].cluster_around = 1;
+    if(grid[robot_y-1][robot_x][0] == _depot) robots[robot_index].depot_around = 1;
+    if(grid[robot_y-1][robot_x][0] == _agentNoGold) robots[robot_index].agent_around = 1;
     
     if(grid[robot_y-1][robot_x][0] == _empty || grid[robot_y-1][robot_x][0] == _depot || 
         grid[robot_y-1][robot_x][0] == _goldCluster || grid[robot_y-1][robot_x][0] == _crumb ){
@@ -134,6 +356,10 @@ int canRandomWalk(int robot_index){
       }
   }
   if(robot_y + 1 < n){
+
+    if(grid[robot_y+1][robot_x][0] == _goldCluster) robots[robot_index].cluster_around = 1;
+    if(grid[robot_y+1][robot_x][0] == _depot) robots[robot_index].depot_around = 1;
+    if(grid[robot_y+1][robot_x][0] == _agentNoGold) robots[robot_index].agent_around = 1;
     
     if(grid[robot_y+1][robot_x][0] == _empty || grid[robot_y+1][robot_x][0] == _depot || 
         grid[robot_y+1][robot_x][0] == _goldCluster || grid[robot_y+1][robot_x][0] == _crumb ){
@@ -146,6 +372,10 @@ int canRandomWalk(int robot_index){
       }
   }
   if(robot_x + 1 < n){
+
+    if(grid[robot_y][robot_x+1][0] == _goldCluster) robots[robot_index].cluster_around = 1;
+    if(grid[robot_y][robot_x+1][0] == _depot) robots[robot_index].depot_around = 1;
+    if(grid[robot_y][robot_x+1][0] == _agentNoGold) robots[robot_index].agent_around = 1;
     
     if(grid[robot_y][robot_x+1][0] == _empty || grid[robot_y][robot_x+1][0] == _depot || 
       grid[robot_y][robot_x+1][0] == _goldCluster || grid[robot_y][robot_x+1][0] == _crumb ){
@@ -158,6 +388,11 @@ int canRandomWalk(int robot_index){
     }
     
     if(robot_y - 1 >= 0){
+
+      if(grid[robot_y-1][robot_x+1][0] == _goldCluster) robots[robot_index].cluster_around = 1;
+      if(grid[robot_y-1][robot_x+1][0] == _depot) robots[robot_index].depot_around = 1;
+      if(grid[robot_y-1][robot_x+1][0] == _agentNoGold) robots[robot_index].agent_around = 1;
+
       
       if(grid[robot_y-1][robot_x+1][0] == _empty || grid[robot_y-1][robot_x+1][0] == _depot || 
         grid[robot_y-1][robot_x+1][0] == _goldCluster || grid[robot_y-1][robot_x+1][0] == _crumb ){
@@ -171,6 +406,11 @@ int canRandomWalk(int robot_index){
     } 
 
     if(robot_y + 1 < n){
+
+      if(grid[robot_y+1][robot_x+1][0] == _goldCluster) robots[robot_index].cluster_around = 1;
+      if(grid[robot_y+1][robot_x+1][0] == _depot) robots[robot_index].depot_around = 1;
+      if(grid[robot_y+1][robot_x+1][0] == _agentNoGold) robots[robot_index].agent_around = 1;
+
       
       if(grid[robot_y+1][robot_x+1][0] == _empty || grid[robot_y+1][robot_x+1][0] == _depot || 
         grid[robot_y+1][robot_x+1][0] == _goldCluster || grid[robot_y+1][robot_x+1][0] == _crumb ){
@@ -197,6 +437,14 @@ void buildGrid(){
   int depotGold;
   int clusterGold;
   int crumbNumber;
+
+  for(i = 0; i < n; i++){
+    for(j = 0; j < n; j++){
+      for(k = 0; k < 2; k++){
+        grid[i][j][k] = _empty;
+      }
+    }
+  }
 
   for(i = 0 ; i < number_of_gold_clusters; i++){
     x = gold_clusters[i].x_coordinate;
@@ -235,8 +483,6 @@ void buildGrid(){
     grid[y][x][1] = id;
   }
   
-  
-  
   for(i = 0 ; i < number_of_obstacles; i++){
     x = obstacles[i].x_coordinate;
     y = obstacles[i].y_coordinate;
@@ -253,8 +499,6 @@ void buildGrid(){
 void printGrid(){
   int i, j, k;  
 
-  printf("\n");
-  
   for(i = 0 ; i < n ; i++){
       for(j = 0 ; j < n ; j++){
           
@@ -319,6 +563,8 @@ int main(){
   int num_of_chars_in_line = 0;
 
   int golds_to_carry = 0;
+  crumbs = malloc(0 * sizeof(struct Crumb));
+
 
 	while(fgets(line, sizeof(line), fp ) ){
     num_of_chars_in_line = 0;
@@ -449,6 +695,10 @@ int main(){
         robot.agent_id = id;
         robot.x_coordinate = x - 1;
         robot.y_coordinate = y - 1;
+        robot.on_grid_type = -2;
+        robot.agent_around = 0;
+        robot.depot_around = 0;
+        robot.cluster_around = 0;
         robot.percepts_to_action = malloc(8 * sizeof(int*));
         int p;
         for(p = 0; p < 8; p++){
@@ -609,27 +859,24 @@ int main(){
   }
   
   buildGrid();
-  printf("golds to carry: %d\n", golds_to_carry);
-  int robot_index;
-  while(golds_to_carry != 0){
-    //randomize this!
-    for(robot_index = 0; robot_index < number_of_robots; robot_index++){
-      int robot_x = robots[robot_index].x_coordinate;
-      int robot_y = robots[robot_index].y_coordinate;
-      int hasGold = robots[robot_index].hasGold;
-      int random;
-      
-      if(canRandomWalk(robot_index)){
-        randomWalk(robot_index);
-      } else {
-        continue;
-      }      
-
-    }
-    break;
-  }
-  buildGrid();
+  printf("Initial scene:\n");
   printGrid();
+  int scene_number = 0;
+  int robot_index;
+  while(golds_to_carry != depot.number_of_golds){
+    //randomize this!
+    scene_number++;
+    for(robot_index = 0; robot_index < number_of_robots; robot_index++){
+      
+      canRandomWalk(robot_index);
+      randomWalk(robot_index);
+      buildGrid();
+
+    }  
+    buildGrid();
+    printf("Scene after step %d: \n\n", scene_number);
+    printGrid();
+  }
   
   for (i = 0; i < n; i++){
     free(grid[i]);
